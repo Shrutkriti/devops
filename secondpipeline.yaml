@@ -1,0 +1,78 @@
+pipeline {
+
+  environment {
+
+    SVC_ACCOUNT_KEY = credentials('terraform-auth')   
+
+  }
+
+  agent {
+    kubernetes {
+      label 'db'
+      defaultContainer 'jnlp'
+      yaml """
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name:  terra-pod
+            labels:
+              name: terra
+          spec:
+            volumes:
+            - name: test
+              # secret:
+              #   secretName: svc-key
+            containers:
+              - name: Terraform
+                image: docker.io/hashicorp/terraform  #to use gcr repo
+                command:
+                  - cat
+                tty: true
+                volumeMounts:
+                - name: test
+                # env:
+                # - name: GOOGLE_APPLICATION_CREDENTIALS
+                #   value: /var/secrets/google/key.json 
+              """
+    }
+  }
+
+        stage('Deploy') {
+            steps {
+              container('terraform') {
+                sh 'terraform init'
+                
+              }
+            }
+        }
+      
+          stage('TF Plan') {
+            steps {
+              container('terraform') {
+                sh 'terraform init'
+                sh 'terraform plan -out myplan'
+                }
+            }
+          }
+
+          stage('Approval') {
+            steps {
+              // This stage is optional, but it pauses the pipeline and waits for the approval of a human operator before continuing.
+              script {
+                def userInput = input(id: 'confirm', message: 'Apply Terraform?', parameters: [ [$class: 'BooleanParameterDefinition', defaultValue: false, description: 'Apply terraform', name: 'confirm'] ])
+              }
+            }
+          }
+
+          stage('TF Apply') {
+                steps {
+                  container('terraform') {
+                    sh terraform apply -input=false myplan'
+                  }
+                }
+          }
+
+}
+}
+
+     
