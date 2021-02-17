@@ -18,24 +18,24 @@ pipeline {
             labels:
               name: terra
           spec:
-            volumes:
-            - name: test
-              # secret:
-              #   secretName: svc-key
             containers:
               - name: Terraform
                 image: docker.io/hashicorp/terraform  #to use gcr repo
                 command:
                   - cat
-                tty: true
-                volumeMounts:
-                - name: test
-                # env:
-                # - name: GOOGLE_APPLICATION_CREDENTIALS
-                #   value: /var/secrets/google/key.json 
-              """
+                tty: true """
     }
   }
+
+      stages {
+
+        stage('Checkout') {
+          steps {
+            checkout scm
+            sh 'mkdir -p creds' 
+            sh 'echo $SVC_ACCOUNT_KEY | base64 -d > ./creds/serviceaccount.json'
+          }
+        }  
 
         stage('Deploy') {
             steps {
@@ -67,10 +67,11 @@ pipeline {
           stage('TF Apply') {
                 steps {
                   container('terraform') {
-                    sh terraform apply -input=false myplan'
+                    sh 'terraform apply -input=false myplan'
                   }
                 }
           }
+        }
 
 }
 }
